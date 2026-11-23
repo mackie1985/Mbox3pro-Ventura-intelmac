@@ -1,0 +1,503 @@
+<!doctype html>
+<!-- SPDX-FileCopyrightText: 2026 Mackie -->
+<!-- SPDX-License-Identifier: LGPL-3.0-or-later -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mbox 3 Pro</title>
+<style>
+:root{
+  --bg:#0d0f12; --panel:#15181d; --panel2:#1b1f26; --line:#272c35; --text:#e8ebf0; --dim:#8a93a2; --faint:#566070;
+  --accent:#ffb02e; --accent2:#2ee6c5; --danger:#ff4d5e; --ok:#3ddc84;
+  --m-low:#2ee6c5; --m-mid:#ffd23f; --m-hi:#ff4d5e;
+  --radius:14px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Hiragino Sans","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+body{min-height:100vh;background:radial-gradient(1200px 600px at 80% -10%,#1b2230 0,transparent 60%),var(--bg)}
+button{font:inherit;color:inherit}
+.wrap{max-width:1280px;margin:0 auto;padding:0 16px 40px}
+
+/* header */
+header{display:flex;align-items:center;gap:16px;padding:10px 0;flex-wrap:wrap}
+.logo{display:flex;align-items:baseline;gap:8px}
+.logo b{font-size:20px;letter-spacing:.14em;font-weight:700}
+.logo span{color:var(--accent);font-weight:600;letter-spacing:.2em;font-size:12px}
+.status{display:flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid var(--line);border-radius:999px;background:var(--panel);font-size:12px;color:var(--dim)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--faint)}
+.dot.on{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+.dot.warn{background:var(--m-mid);box-shadow:0 0 8px var(--m-mid)}
+.spacer{flex:1}
+.pill{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);cursor:pointer;font-weight:600;font-size:12px;letter-spacing:.06em}
+.pill:hover{border-color:var(--faint)}
+.pill.on{background:linear-gradient(180deg,#ff6a77,#d6283a);border-color:#ff8f99;color:#fff;box-shadow:0 0 18px rgba(255,77,94,.45)}
+.pill .lamp{width:8px;height:8px;border-radius:50%;background:var(--faint)}
+.pill.on .lamp{background:#fff}
+
+/* layout */
+.grid{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+.rowtitle{font-size:11px;font-weight:600;letter-spacing:.18em;color:var(--text);opacity:.85;margin:2px 0 5px}
+.rvpanel .knob svg{width:44px;height:44px}
+.rvpanel .knobs{gap:10px 2px}
+.rvpanel .knob label{font-size:9px;letter-spacing:.06em}
+.rvpanel{flex-direction:column;width:196px;gap:0;padding:10px 10px}
+.rvsw{width:100%;height:26px;margin-top:8px;font-size:10px}
+.rvsw.on{background:var(--accent);border-color:var(--accent);color:#111}
+.rvtitle{font-size:10px;font-weight:600;letter-spacing:.14em;color:var(--text);opacity:.85;margin:2px 0 8px}
+.rvpanel .row{margin-bottom:10px}
+.side select{padding:5px 8px;font-size:12px}
+.card{min-width:0;background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px}
+.card h2{margin:0 0 12px;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);font-weight:600;display:flex;align-items:center;gap:8px}
+.card h2 small{margin-left:auto;letter-spacing:.04em;text-transform:none;color:var(--faint);font-weight:400}
+
+/* mixer */
+.strips{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px;scrollbar-width:thin}
+.group{display:flex;gap:4px;padding:8px 6px;border:1px solid var(--line);border-radius:12px;background:rgba(0,0,0,.18);flex:none}
+.group>.gname{writing-mode:vertical-rl;transform:rotate(180deg);font-size:11px;font-weight:600;letter-spacing:.2em;color:var(--text);opacity:.85;text-transform:uppercase;text-align:center}
+.strip{width:46px;display:flex;flex-direction:column;align-items:center;gap:5px;flex:none}
+.strip .name{font-size:11px;color:var(--dim);height:28px;display:flex;align-items:center;text-align:center;line-height:1.1}
+.pan{width:42px;height:18px;position:relative;cursor:ew-resize;touch-action:none}
+.pan:before{content:"";position:absolute;left:0;right:0;top:8px;height:2px;background:var(--line);border-radius:2px}
+.pan i{position:absolute;top:3px;width:12px;height:12px;border-radius:50%;background:var(--text);margin-left:-6px;box-shadow:0 1px 4px #000}
+.pan b{position:absolute;left:50%;top:4px;width:1px;height:10px;background:var(--faint)}
+.fwrap{display:flex;gap:6px;height:92px}
+.fader{width:30px;height:100%;position:relative;touch-action:none;cursor:ns-resize}
+.fader .rail{position:absolute;left:14px;top:6px;bottom:6px;width:3px;background:#000;border-radius:2px;box-shadow:0 0 0 1px var(--line)}
+.fader .fill{position:absolute;left:14px;bottom:6px;width:3px;background:linear-gradient(0deg,var(--accent2),var(--accent));border-radius:2px}
+.fader .cap{position:absolute;left:7px;width:15px;height:10px;margin-bottom:-6px;border-radius:4px;background:linear-gradient(180deg,#e3e7ec 0%,#b4bac4 45%,#8d949f 55%,#6f7681 100%);border:1px solid #4a515c;box-shadow:0 2px 5px rgba(0,0,0,.65),inset 0 1px 0 rgba(255,255,255,.55)}
+.fader .cap:after{content:"";position:absolute;left:2px;right:2px;top:4px;height:2px;background:#1d2128;border-radius:1px}
+.fader .unity{position:absolute;left:0;width:8px;height:1px;background:var(--faint)}
+.meter{width:8px;height:100%;border-radius:3px;background:#000;position:relative;overflow:hidden;box-shadow:inset 0 0 0 1px var(--line)}
+.meter:after{content:"";position:absolute;inset:0;pointer-events:none;background:
+  linear-gradient(rgba(255,255,255,.45),rgba(255,255,255,.45)) 0 0%/100% 1px no-repeat,
+  linear-gradient(rgba(255,255,255,.3),rgba(255,255,255,.3)) 0 10%/100% 1px no-repeat,
+  linear-gradient(rgba(255,255,255,.3),rgba(255,255,255,.3)) 0 20%/100% 1px no-repeat,
+  linear-gradient(rgba(255,255,255,.3),rgba(255,255,255,.3)) 0 33.3%/100% 1px no-repeat,
+  linear-gradient(rgba(255,255,255,.3),rgba(255,255,255,.3)) 0 66.7%/100% 1px no-repeat}
+.sstrip .name{height:28px}
+.sstrip{width:24px;display:flex;flex-direction:column;align-items:center;gap:5px;flex:none}
+.sstrip .fwrap{width:24px;position:relative}
+.sstrip .tick{position:absolute;right:0;transform:translateY(-50%);font:500 9px ui-monospace,Menlo,monospace;color:var(--text);opacity:.7;white-space:nowrap}
+/* the colours are fixed to the dB scale (green up to -12, yellow to -6, red above); the bar is revealed by clipping */
+.meter .bar{position:absolute;left:0;right:0;bottom:0;top:0;background:linear-gradient(0deg,var(--m-low) 0%,var(--m-low) 80%,var(--m-mid) 80%,var(--m-mid) 90%,var(--m-hi) 90%,var(--m-hi) 100%);clip-path:inset(100% 0 0 0)}
+.meter .hold{position:absolute;left:0;right:0;height:2px;margin-bottom:-1px;background:#fff;opacity:.85;bottom:0}
+.db{font:600 11px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--text);background:#000;border:1px solid var(--line);border-radius:6px;padding:3px 0;width:44px;text-align:center}
+.mini{display:flex;gap:3px}
+.mini .btn{min-width:0;padding:0 4px}
+.lkrow{position:relative;height:22px;width:100%}
+.lkrow .lk{position:absolute;left:26px;width:44px;height:22px;padding:0;font-size:10px;letter-spacing:0;z-index:1}
+.btn{height:22px;min-width:20px;padding:0 3px;font-size:9px;font-weight:700;letter-spacing:.06em;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--dim);cursor:pointer}
+.btn:hover{color:var(--text)}
+.btn.on{background:var(--accent);border-color:var(--accent);color:#1a1100}
+.btn.mute.on{background:var(--danger);border-color:var(--danger);color:#fff}
+.btn.ghost{visibility:hidden}
+.master{border-color:#3a3220}
+.mnote{margin-top:2px;color:var(--faint);font-size:11px}
+
+/* knobs */
+.knobs{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 6px}
+.knob{display:flex;flex-direction:column;align-items:center;gap:4px;touch-action:none;user-select:none}
+.knob svg{width:60px;height:60px;cursor:ns-resize}
+.knob label{font-size:10px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase}
+.knob output{font:600 11px ui-monospace,Menlo,monospace}
+select{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font:inherit;width:100%}
+.row{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+
+/* overlays */
+.overlay{position:fixed;inset:0;background:rgba(5,6,8,.78);display:flex;align-items:center;justify-content:center;z-index:10;backdrop-filter:blur(6px)}
+.overlay[hidden]{display:none}
+.modal{background:var(--panel2);border:1px solid var(--line);border-radius:16px;padding:24px;max-width:420px;width:calc(100% - 32px);box-shadow:0 24px 60px rgba(0,0,0,.6)}
+.modal h3{margin:0 0 8px;font-size:17px}
+.modal p{margin:0 0 18px;color:var(--dim)}
+.modal .acts{display:flex;gap:10px;justify-content:flex-end}
+.modal .btn{height:36px;padding:0 16px;font-size:13px}
+.btn.danger{background:var(--danger);border-color:var(--danger);color:#fff}
+#offline .modal{text-align:center}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#000;border:1px solid var(--line);border-radius:10px;padding:10px 16px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:20}
+#toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo"><b>MBOX 3 PRO</b><span>CONTROL</span></div>
+    <div class="status"><i class="dot" id="dot"></i><span id="stat" data-i="connecting">Connecting…</span></div>
+    <div class="spacer"></div>
+    <button class="pill" id="phantom"><i class="lamp"></i>48V PHANTOM</button>
+  </header>
+
+  <div class="grid">
+    <section class="card master">
+      <h2>Mixer <button class="btn" id="resetout" style="height:26px;padding:0 10px;font-size:11px;margin-left:10px" data-i="reset">Reset outputs</button> <small data-i="inhint">Inputs feed Out 1–2 and Phones A/B together</small></h2>
+      <div class="rowtitle" data-i="rowin">INPUT</div>
+      <div class="strips" id="strips-in"></div>
+      <div class="rowtitle" data-i="rowout">OUTPUT</div>
+      <div class="strips" id="strips-out"></div>
+      <div class="mnote" data-i="note">Faders: 0 dB = 0x4000 (an estimate, not verified on hardware). Double-click a fader to return to 0 dB.</div>
+    </section>
+
+    <div hidden id="rvhold"><div class="group rvpanel" id="rvpanel">
+      <div class="rvtitle">REVERB SETTINGS</div>
+      <div class="row"><select id="rtype"></select></div>
+      <div class="knobs" id="reverb"></div>
+      <button class="btn rvsw" id="rvsw" data-i="rvOff">OFF</button>
+    </div></div>
+  </div>
+</div>
+
+<div class="overlay" id="confirm" hidden>
+  <div class="modal">
+    <h3 data-i="phTitle">Turn on 48V phantom power?</h3>
+    <p data-i="phText">Ribbon microphones and unbalanced equipment can be damaged. Check what is connected first.</p>
+    <div class="acts"><button class="btn" id="no" data-i="cancel">Cancel</button><button class="btn danger" id="yes" data-i="phOn">Turn on</button></div>
+  </div>
+</div>
+<div class="overlay" id="offline" hidden>
+  <div class="modal">
+    <h3 data-i="offTitle">Not connected to the Mbox 3 Pro</h3>
+    <p data-i="offText">Waiting for the daemon to open the device. Check the power and the cable; this page recovers by itself once it is connected.</p>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+"use strict";
+const I18N = {
+  en: {connecting:"Connecting…", reset:"Reset outputs", inhint:"Inputs feed Out 1–2 and Phones A/B together", rowin:"INPUT", rowout:"OUTPUT",
+       note:"Faders: 0 dB = 0x4000 (an estimate, not verified on hardware). Double-click a fader to return to 0 dB.",
+       phTitle:"Turn on 48V phantom power?", phText:"Ribbon microphones and unbalanced equipment can be damaged. Check what is connected first.",
+       cancel:"Cancel", phOn:"Turn on", offTitle:"Not connected to the Mbox 3 Pro",
+       offText:"Waiting for the daemon to open the device. Check the power and the cable; this page recovers by itself once it is connected.",
+       writeFail:"Write failed: ", linkTip:"Stereo link", locked:"clock locked", unlocked:"waiting for lock", disc:"not connected",
+       nodaemon:"cannot reach the daemon", resetDone:"Out 1–8 / Phones reset to 0 dB", rvOn:"ON", rvOff:"OFF"},
+  ja: {connecting:"接続中…", reset:"出力を初期化", inhint:"入力は Out 1–2 と Phones A/B に同時に送られます", rowin:"入力 INPUT", rowout:"出力 OUTPUT",
+       note:"フェーダーは 0 dB = 0x4000（実機で未検証の推定値）。ダブルクリックで 0 dB に戻ります。",
+       phTitle:"48V ファンタム電源をオンにしますか？", phText:"リボンマイクや不平衡の機材をつないでいると壊れることがあります。つないでいる機材を確認してください。",
+       cancel:"キャンセル", phOn:"オンにする", offTitle:"Mbox 3 Pro に接続していません",
+       offText:"デーモンがデバイスを開くのを待っています。電源とケーブルを確認してください。つながり次第、自動で戻ります。",
+       writeFail:"書き込み失敗: ", linkTip:"ステレオリンク", locked:"クロック同期", unlocked:"同期待ち", disc:"未接続",
+       nodaemon:"デーモンに接続できません", resetDone:"Out 1–8 / Phones を初期状態（0 dB）に戻しました", rvOn:"ON", rvOff:"OFF"}
+};
+const LANG = /^ja/i.test(navigator.language||"") ? "ja" : "en";
+const tr = k => I18N[LANG][k];
+document.documentElement.lang = LANG;
+document.querySelectorAll("[data-i]").forEach(e => { e.textContent = tr(e.dataset.i); });
+const FH = 92;                  // fader travel height in px (keep equal to .fwrap in the CSS)
+const IN = 18, OUT = 16, UNITY = 0x4000, MAXV = 0x7fff;
+const METER_FS = 4096;          // peak meter: 12-bit linear, 0xfff = 0 dBFS (measured with scripts/meter_cal.sh)
+const IN_SRC = k => k<8 ? 0xb0+k : k<14 ? 0x40+(k-8) : k<16 ? k-14 : 0x50+(k-16);
+const OUT_SRC = o => 0x20+o;
+const MON = [[0,1],[8,9],[10,11]];   // input strips feed Out 1-2 and both headphone pairs together
+const STRIPS = [];
+for(let o=0;o<8;o++) STRIPS.push({grp:o<6?"Output":"S/PDIF Out", label:"Out "+(o+1), kind:"out", cell:[o,o], meter:0x20+o});
+[["A L",8,0],["A R",9,1],["B L",10,0],["B R",11,1]].forEach(([n,o,i])=>STRIPS.push({grp:"Phones", label:"Ph "+n, kind:"out", cell:[o,i], meter:0x20+o}));
+for(let i=8;i<18;i++){
+  const g = i<14?"Input":i<16?"S/PDIF In":"Reverb";
+  const label = i<14?"In "+(i-7) : i<16?"SPDIF "+(i==14?"L":"R") : "Rev "+(i==16?"L":"R");
+  STRIPS.push({grp:g, label, kind:"in", i, meter:IN_SRC(i)});
+}
+// meter sources: router entry = (src << 8) | dst
+
+const $ = s => document.querySelector(s);
+let S = null;                    // last state from the device
+let mix = new Array(IN*OUT).fill(0);
+let premute = {};                // "o,i" -> value before mute
+let lastPan = {};                // remember pan of a strip whose level is 0
+let busy = 0;                    // dragging: do not overwrite from polls
+let meters = {};                 // src -> level (0..0x7fff scale)
+const hold = {};                 // peak hold per meter element
+
+async function api(path, body){
+  const opt = body===undefined ? {} : {method:"POST", headers:{"X-Mbox3":"1","Content-Type":"application/x-www-form-urlencoded"}, body};
+  const r = await fetch(path, opt);
+  if(!r.ok) throw new Error(await r.text());
+  return path.startsWith("/api/state")||path.startsWith("/api/meters") ? r.json() : r.text();
+}
+function toast(t){const e=$("#toast");e.textContent=t;e.classList.add("show");clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove("show"),2200)}
+
+/* ---- gain mapping ---- */
+const DB_MIN=-60, DB_MAX=20*Math.log10(MAXV/UNITY);
+const v2db = v => v<=0 ? -Infinity : 20*Math.log10(v/UNITY);
+const db2v = d => Math.max(0, Math.min(MAXV, Math.round(UNITY*Math.pow(10,d/20))));
+const v2pos = v => { const d=v2db(v); return d===-Infinity||d<=DB_MIN ? 0 : (d-DB_MIN)/(DB_MAX-DB_MIN) };
+const pos2v = p => p<=0.004 ? 0 : db2v(DB_MIN + p*(DB_MAX-DB_MIN));
+const fmtdb = v => v<=0 ? "−∞" : (v2db(v)>=0?"+":"") + v2db(v).toFixed(1);
+
+/* ---- strips ---- */
+function cell(o,i){return mix[o*IN+i]}
+function stripState(idx){
+  const d=STRIPS[idx], key="s"+idx;
+  if(d.kind==="out"){ const m=cell(d.cell[0],d.cell[1]); return {level:m, pan:0, muted:m===0 && premute[key]!==undefined}; }
+  const [a,b]=MON[0], L=cell(a,d.i), R=cell(b,d.i), m=Math.max(L,R);
+  let pan;
+  if(m===0) pan = lastPan[key] ?? 0;
+  else pan = L>=R ? -(1-R/L) : (1-L/R);
+  return {level:m, pan, muted: m===0 && premute[key]!==undefined};
+}
+let links; try{ links=JSON.parse(localStorage.getItem("m3link")||"null") }catch(e){}
+if(!Array.isArray(links)||links.length!==6) links=[1,1,1,1,1,1];
+const partner = idx => idx<12 ? idx^1 : -1;
+const linked = idx => idx<12 && !!links[idx>>1];
+function setCell(o,i,v){ mix[o*IN+i]=v; queueWrite(o,i,v) }
+function applyStrip(idx, level, pan){
+  const d=STRIPS[idx];
+  if(d.kind==="out"){
+    setCell(d.cell[0],d.cell[1],Math.round(level));
+    if(linked(idx)){ const q=STRIPS[partner(idx)]; setCell(q.cell[0],q.cell[1],Math.round(level)) }
+    return }
+  const gl = Math.round(level*Math.min(1,1-pan)), gr = Math.round(level*Math.min(1,1+pan));
+  for(const [a,b] of MON){ setCell(a,d.i,gl); setCell(b,d.i,gr) }
+}
+let pending = new Map(), timer = null;
+function queueWrite(o,i,v){ pending.set(o+","+i, v); if(!timer) timer=setTimeout(flush,50) }
+async function flush(){
+  timer=null;
+  if(!pending.size) return;
+  const c=[...pending].map(([k,v])=>k+","+v).join(";"); pending=new Map();
+  try{ await api("/api/mixer","c="+encodeURIComponent(c)) }catch(e){ toast(tr("writeFail")+e.message) }
+}
+
+function drag(el, onMove, onStart){
+  el.addEventListener("pointerdown",ev=>{
+    ev.preventDefault(); el.setPointerCapture(ev.pointerId); busy++; onStart&&onStart(ev);
+    const mv=e=>onMove(e), up=e=>{el.removeEventListener("pointermove",mv);el.removeEventListener("pointerup",up);el.removeEventListener("pointercancel",up);busy--};
+    el.addEventListener("pointermove",mv);el.addEventListener("pointerup",up);el.addEventListener("pointercancel",up);onMove(ev);
+  });
+}
+
+function makeScale(){
+  const s=document.createElement("div"); s.className="sstrip";
+  s.innerHTML='<div class="name">&nbsp;</div><div class="pan" style="visibility:hidden;width:1px"></div>'
+    +'<div class="fwrap">'+[[0,"0"],[20,"-12"],[33.3,"-20"],[66.7,"-40"]].map(([y,l])=>'<span class="tick" style="top:'+y+'%">'+l+'</span>').join("")+'</div>'
+    +'<div class="db" style="visibility:hidden;width:1px;padding-left:0;padding-right:0">0</div>';
+  return s;
+}
+function buildStrips(){
+  const rowIn=$("#strips-in"), rowOut=$("#strips-out"); rowIn.innerHTML=""; rowOut.innerHTML="";
+  const st=[];
+  let gd=null, last=null;
+  STRIPS.forEach((d,i)=>{
+    if(d.grp!==last){
+      gd=document.createElement("div"); gd.className="group";
+      gd.innerHTML='<div class="gname">'+d.grp+'</div>'; gd.appendChild(makeScale()); (d.kind==="in"?rowIn:rowOut).appendChild(gd); last=d.grp;
+    }
+    const el=document.createElement("div"); el.className="strip";
+    el.innerHTML=`<div class="name">${d.label}</div>
+      <div class="pan"${d.kind==="out"?' style="visibility:hidden"':''}><b></b><i></i></div>
+      <div class="fwrap"><div class="fader"><div class="rail"></div><div class="fill"></div><div class="unity"></div><div class="cap"></div></div>
+      <div class="meter"><div class="bar"></div><div class="hold"></div></div></div>
+      <div class="db">−∞</div>
+      <div class="mini"><button class="btn mute">M</button></div>${d.kind==="out"&&i<12?'<div class="lkrow">'+(i%2===0?'<button class="btn lk" title="'+tr("linkTip")+'">LINK</button>':'')+'</div>':''}`;
+    gd.appendChild(el); st.push(el);
+    const fader=el.querySelector(".fader"), pan=el.querySelector(".pan"), key="s"+i;
+    el.querySelector(".unity").style.bottom = (6+v2pos(UNITY)*(FH-12))+"px";
+    drag(fader,e=>{
+      const r=fader.getBoundingClientRect(), p=1-Math.min(1,Math.max(0,(e.clientY-r.top-6)/(r.height-12)));
+      const s=stripState(i); premute[key]=undefined; applyStrip(i,pos2v(p),s.pan); paint();
+    });
+    fader.addEventListener("dblclick",()=>{const s=stripState(i);applyStrip(i,UNITY,s.pan);paint()});
+    if(d.kind==="in"){
+      drag(pan,e=>{
+        const r=pan.getBoundingClientRect(); let p=((e.clientX-r.left)/r.width)*2-1; p=Math.max(-1,Math.min(1,p)); if(Math.abs(p)<0.06)p=0;
+        const s=stripState(i); lastPan[key]=p; applyStrip(i,s.level,p); paint();
+      });
+      pan.addEventListener("dblclick",()=>{const s=stripState(i);lastPan[key]=0;applyStrip(i,s.level,0);paint()});
+    }
+    el.querySelector(".mute").addEventListener("click",()=>{
+      const s=stripState(i);
+      if(s.level>0){premute[key]=s.level;lastPan[key]=s.pan;applyStrip(i,0,s.pan)}
+      else if(premute[key]!==undefined){applyStrip(i,premute[key],s.pan);premute[key]=undefined}
+      if(linked(i)){ const pk="s"+partner(i); premute[pk]=premute[key] }
+      paint();
+    });
+    const lk=el.querySelector(".lk");
+    if(lk) lk.addEventListener("click",()=>{
+      const n=i>>1; links[n]=links[n]?0:1;
+      try{ localStorage.setItem("m3link",JSON.stringify(links)) }catch(e){}
+      if(links[n]){ const a=i&~1, s=stripState(a); applyStrip(a,s.level,0) }   // the left strip wins
+      paint();
+    });
+  });
+  // master group
+  const mg=document.createElement("div"); mg.className="group";
+  mg.innerHTML='<div class="gname">Monitor</div>'; mg.appendChild(makeScale());
+  for(let k=0;k<2;k++){
+    const el=document.createElement("div"); el.className="strip"; el.dataset.master=k;
+    el.innerHTML=`<div class="name">${k?"R":"L"}</div><div class="pan" style="visibility:hidden"></div>
+      <div class="fwrap"><div class="fader" style="visibility:hidden"></div><div class="meter"><div class="bar"></div><div class="hold"></div></div></div>
+      <div class="db">−∞</div><div class="mini"><button class="btn ghost">·</button></div>`;
+    mg.appendChild(el);
+  }
+  rowOut.appendChild(mg);
+  rowIn.appendChild($("#rvpanel"));
+  buildStrips.els=st; buildStrips.master=[...mg.querySelectorAll(".strip")];
+}
+
+function setMeter(el, level, key){
+  const h = level<=0 ? 0 : Math.max(0,Math.min(1,(20*Math.log10(level/METER_FS)+60)/60));
+  const bar=el.querySelector(".bar"), hd=el.querySelector(".hold");
+  bar.style.clipPath="inset("+((1-h)*100)+"% 0 0 0)";
+  const hv=hold[key]||{v:0,t:0}; const now=performance.now();
+  if(h>=hv.v||now-hv.t>1200){hv.v=Math.max(h,hv.v-0.02);hv.t=h>=hv.v?now:hv.t}
+  hold[key]=hv; hd.style.bottom=(hv.v*100)+"%";
+  return hv.v;
+}
+
+function paint(){
+  const els=buildStrips.els; if(!els) return;
+  els.forEach((el,idx)=>{
+    const s=stripState(idx), pos=v2pos(s.level);
+    el.querySelector(".cap").style.bottom=(6+pos*(FH-12))+"px";
+    el.querySelector(".fill").style.height=(pos*(FH-12))+"px";
+    el.querySelector(".pan i").style.left=((s.pan+1)/2*100)+"%";
+    el.querySelector(".db").textContent=s.muted?"MUTE":fmtdb(s.level);
+    el.querySelector(".mute").classList.toggle("on",s.muted);
+    const lk=el.querySelector(".lk"); if(lk) lk.classList.toggle("on",linked(idx));
+  });
+}
+function paintMeters(){
+  const els=buildStrips.els; if(!els) return;
+  els.forEach((el,i)=>setMeter(el.querySelector(".meter"), meters["s"+STRIPS[i].meter]||0, "i"+i));
+  const [a,b]=[0,1];
+  buildStrips.master.forEach((el,k)=>{
+    const o=k?b:a; const lv=meters["s"+OUT_SRC(o)]||0;
+    const hv=setMeter(el.querySelector(".meter"), lv, "m"+k);
+    // the number is the peak-hold value: the same position the white hold line has on the 0 / -12 / -20 / -40 scale
+    el.querySelector(".db").textContent = hv>0 ? (hv*60-60).toFixed(0) : "−∞";
+  });
+}
+
+
+/* ---- knobs ---- */
+function knob(parent,{label,min,max,get,set,fmt,step=1}){
+  const w=document.createElement("div"); w.className="knob";
+  const R=22, C=30, a0=-135, a1=135;
+  const pt=(deg,r)=>{const a=(deg-90)*Math.PI/180;return [C+r*Math.cos(a),C+r*Math.sin(a)]};
+  const arc=(d0,d1)=>{const [x0,y0]=pt(d0,R),[x1,y1]=pt(d1,R);return `M${x0} ${y0} A${R} ${R} 0 ${d1-d0>180?1:0} 1 ${x1} ${y1}`};
+  const gid="kg"+(knob.n=(knob.n||0)+1);
+  w.innerHTML=`<svg viewBox="0 0 60 60"><defs><radialGradient id="${gid}" cx="38%" cy="30%" r="80%">
+      <stop offset="0" stop-color="#eef1f5"/><stop offset=".45" stop-color="#a9b0bb"/><stop offset="1" stop-color="#5b626e"/></radialGradient></defs>
+    <path d="${arc(a0,a1)}" stroke="#262c36" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <path class="val" stroke="#c4cad3" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <circle cx="30" cy="30" r="15" fill="url(#${gid})" stroke="#3b424d" stroke-width="1.2"/><line class="ptr" x1="30" y1="30" stroke="#1d2128" stroke-width="2.5" stroke-linecap="round"/></svg>
+    <output></output><label>${label}</label>`;
+  parent.appendChild(w);
+  const svg=w.querySelector("svg"), val=w.querySelector(".val"), ptr=w.querySelector(".ptr"), out=w.querySelector("output");
+  w.paint=()=>{
+    const v=get(), f=(v-min)/(max-min), ang=a0+f*(a1-a0);
+    val.setAttribute("d", f<=0.001 ? "" : arc(a0,ang));
+    const [x,y]=pt(ang,11); ptr.setAttribute("x2",x); ptr.setAttribute("y2",y); out.textContent=fmt?fmt(v):v;
+  };
+  let sv=0,sy=0;
+  drag(svg,e=>{
+    const dy=sy-e.clientY; let v=sv+dy/150*(max-min); v=Math.max(min,Math.min(max,Math.round(v/step)*step));
+    if(v!==get()){set(v);w.paint()}
+  },e=>{sv=get();sy=e.clientY});
+  svg.addEventListener("dblclick",()=>{});
+  w.paint(); return w;
+}
+
+/* ---- parameters ---- */
+const P = {rvol:0, rdur:0, rfb:0};
+const pend={};
+function sendParam(name,i,v){
+  const k=name+i; clearTimeout(pend[k]);
+  pend[k]=setTimeout(()=>api("/api/param",`name=${name}&i=${i}&v=${v}`).catch(e=>toast(tr("writeFail")+e.message)),60);
+}
+const knobs=[];
+function buildPanels(){
+  const rv=$("#reverb");
+  knobs.push(knob(rv,{label:"Level",min:0,max:255,get:()=>P.rvol,set:v=>{P.rvol=v;sendParam("rvol",0,v)}}));
+  knobs.push(knob(rv,{label:"Time",min:0,max:255,get:()=>P.rdur,set:v=>{P.rdur=v;sendParam("rdur",0,v)}}));
+  knobs.push(knob(rv,{label:"Feedback",min:0,max:255,get:()=>P.rfb,set:v=>{P.rfb=v;sendParam("rfb",0,v)}}));
+  const rt=$("#rtype");
+  [[1,"Room 1"],[4,"Room 2"],[5,"Room 3"],[6,"Hall 1"],[8,"Hall 2"],[11,"Plate"],[19,"Delay"],[20,"Echo"]].forEach(([v,n])=>{const o=document.createElement("option");o.value=v;o.textContent=n;rt.appendChild(o)});
+  rt.onchange=()=>api("/api/param","name=rtype&i=0&v="+rt.value).catch(e=>toast(tr("writeFail")+e.message));
+}
+function paintParams(){
+  const p=S&&S.params; if(!p) return;
+  $("#phantom").classList.toggle("on",!!p.phantom);
+  if(!busy){
+    P.rvol=p.rvol; P.rdur=p.rdur; P.rfb=p.rfb;
+    knobs.forEach(k=>k.paint());
+    if(document.activeElement!==$("#rtype")) $("#rtype").value=p.rtype;
+  }
+}
+
+/* phantom */
+$("#phantom").onclick=()=>{
+  const on=S&&S.params&&S.params.phantom;
+  if(on) return setPhantom(0);
+  $("#confirm").hidden=false;
+};
+$("#no").onclick=()=>$("#confirm").hidden=true;
+$("#yes").onclick=()=>{$("#confirm").hidden=true;setPhantom(1)};
+async function setPhantom(v){
+  try{await api("/api/param","name=phantom&i=0&v="+v);if(S&&S.params)S.params.phantom=v;paintParams()}catch(e){toast(tr("writeFail")+e.message)}
+}
+
+
+/* ---- polling ---- */
+async function pollState(){
+  try{
+    const s=await api("/api/state");
+    S=s;
+    $("#offline").hidden=!!s.online;
+    if(s.online){
+      $("#dot").className="dot "+(s.locked?"on":"warn");
+      $("#stat").textContent=`${(s.rate/1000).toFixed(1)} kHz · ${s.locked?tr("locked"):tr("unlocked")} · under ${s.under}`;
+      if(s.mixer && !busy && !pending.size) mix=s.mixer.slice();
+      rvInit(); paintParams(); paint(); paintRv();
+    }else{ $("#dot").className="dot"; $("#stat").textContent=tr("disc") }
+  }catch(e){ S=null; $("#dot").className="dot"; $("#stat").textContent=tr("nodaemon"); $("#offline").hidden=false }
+  setTimeout(pollState,1000);
+}
+async function pollMeters(){
+  if(S&&S.online&&!document.hidden){
+    try{
+      const m=await api("/api/meters"), nm={};
+      for(const [r,l] of m){const src=r>>8, k="s"+src; nm[k]=Math.max(nm[k]||0,l)}
+      meters=nm;
+    }catch(e){meters={}}
+  } else meters={};
+  paintMeters();
+  setTimeout(pollMeters,80);
+}
+
+/* Reverb ON/OFF: OFF zeroes the Rev L/R returns of the monitor outputs (the levels are remembered for ON).
+   The state is derived from the mixer cells, so it also follows the Rev faders and the restored state. Default: OFF. */
+const RV_OUTS=[0,1,8,9,10,11];
+const rvIsOn=()=>RV_OUTS.some(o=>cell(o,16)>0||cell(o,17)>0);
+function rvSet(on){
+  if(on===rvIsOn()) return;
+  if(on){
+    let sv=null; try{ sv=JSON.parse(localStorage.getItem("m3rvsave")||"null") }catch(e){}
+    const dflt=db2v(-6);
+    RV_OUTS.forEach(o=>{ for(const i of [16,17]) setCell(o,i,(sv&&sv[o+","+i])||dflt) });
+  }else{
+    const sv={}; RV_OUTS.forEach(o=>{ for(const i of [16,17]) sv[o+","+i]=cell(o,i) });
+    try{ localStorage.setItem("m3rvsave",JSON.stringify(sv)) }catch(e){}
+    RV_OUTS.forEach(o=>{ for(const i of [16,17]) setCell(o,i,0) });
+  }
+  paint(); paintRv();
+}
+function paintRv(){ const on=rvIsOn(), b=$("#rvsw"); b.classList.toggle("on",on); b.textContent=tr(on?"rvOn":"rvOff") }
+$("#rvsw").onclick=()=>rvSet(!rvIsOn());
+let rvInited=false;
+function rvInit(){
+  if(rvInited||!S||!S.mixer) return; rvInited=true;
+  let seen=null; try{ seen=localStorage.getItem("m3rvinit"); localStorage.setItem("m3rvinit","1") }catch(e){ return }
+  if(!seen) rvSet(false);     // first visit: reverb off
+}
+$("#resetout").onclick=()=>{
+  for(let o=0;o<12;o++) for(let i=0;i<8;i++){
+    const want = (o<8 ? i===o : i===(o&1)) ? UNITY : 0;
+    if(cell(o,i)!==want) setCell(o,i,want);
+  }
+  premute={}; paint(); toast(tr("resetDone"));
+};
+buildStrips(); buildPanels(); paint(); pollState(); pollMeters();
+</script>
+</body>
+</html>

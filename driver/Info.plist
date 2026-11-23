@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-FileCopyrightText: 2026 Mackie -->
+<!-- SPDX-License-Identifier: LGPL-3.0-or-later -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>English</string>
+    <key>CFBundleExecutable</key>
+    <string>Mbox3Driver</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.mbox3pro.driver.plugin</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>Mbox3</string>
+    <key>CFBundlePackageType</key>
+    <string>BNDL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.1</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>CFPlugInFactories</key>
+    <dict>
+        <key>8D0E6E2A-5F2A-4B83-9C1D-1D3C0E0A7B11</key>
+        <string>Mbox3_Create</string>
+    </dict>
+    <key>CFPlugInTypes</key>
+    <dict>
+        <key>443ABAB8-E7B3-491A-B985-BEB9187030DB</key>
+        <array>
+            <string>8D0E6E2A-5F2A-4B83-9C1D-1D3C0E0A7B11</string>
+        </array>
+    </dict>
+    <key>AudioServerPlugIn_MachServices</key>
+    <array>
+        <string>com.mbox3pro.driver.daemon</string>
+    </array>
+</dict>
+</plist>

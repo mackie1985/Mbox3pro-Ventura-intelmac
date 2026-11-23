@@ -1,0 +1,25 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Mackie
+# SPDX-License-Identifier: LGPL-3.0-or-later
+# Installer, after the files are copied: fix the owners, start the daemon, restart coreaudiod so it loads the plug-in.
+LABEL=com.mbox3pro.driver.daemon
+PLIST=/Library/LaunchDaemons/$LABEL.plist
+chown root:wheel "$PLIST" /usr/local/libexec/mbox3d
+chmod 644 "$PLIST"
+chmod 755 /usr/local/libexec/mbox3d /usr/local/share/mbox3pro/uninstall.sh
+chown -R root:wheel /Library/Audio/Plug-Ins/HAL/Mbox3.driver /usr/local/share/mbox3pro
+
+launchctl bootout system/$LABEL 2>/dev/null || true
+for i in 1 2 3 4 5 6 7 8 9 10; do
+    launchctl print system/$LABEL >/dev/null 2>&1 || break
+    sleep 1
+done
+ok=0
+for i in 1 2 3 4 5; do
+    if launchctl bootstrap system "$PLIST"; then ok=1; break; fi
+    sleep 2
+done
+[ $ok = 1 ] || launchctl load -w "$PLIST" || true
+
+killall coreaudiod 2>/dev/null || true
+exit 0
