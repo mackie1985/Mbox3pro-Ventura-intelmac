@@ -98,6 +98,10 @@ Then power-cycle the interface to restore its standalone routing. Saved state fi
 
 Choose **Mbox 3 Pro** as the output / input device in System Settings or in your DAW. Logs are in `/var/log/mbox3d.log`.
 
+![The control panel: mixer, meters and reverb settings](docs/control-panel.png)
+
+The control panel (open `http://127.0.0.1:47310/` in a browser on the same Mac): mixer, level meters, reverb settings, 48 V phantom power.
+
 The control panel language follows the browser (English, or Japanese when the browser language is Japanese).
 
 ## Troubleshooting
