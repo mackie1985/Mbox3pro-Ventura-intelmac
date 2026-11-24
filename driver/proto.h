@@ -43,18 +43,22 @@
 #define M3_RING_FRAMES 32768u           /* power of two */
 #define M3_HEADER_SIZE 4096u
 
-#define M3_PREFILL_FRAMES 768u          /* silence queued ahead of the audio */
-#define M3_PUMP_DELAY 256u             /* the daemon takes frame T when the device clock is at T + this,
-                                           which gives CoreAudio that much more time to write it;
-                                           the rest of the prefill (512) covers daemon scheduling */
-#define M3_OUT_LATENCY_FOR(rate) (M3_PREFILL_FRAMES * M3_RATE_MULT(rate) + (rate) * 1264u / 44100u)  /* 2032 at 44100, 2142 at 48000 */
-#define M3_OUT_LATENCY M3_OUT_LATENCY_FOR(44100u)            /* prefill 768 + 224 slots of send look-ahead (about 1213, measured at 128 slots) + about 50 converters */
+/* Output pipeline defaults (v0.2.0, low latency; verified on hardware at 44.1 kHz, see DESIGN section 32).
+ * The older conservative values were prefill 768, queue 512, send look-ahead 224 slots:
+ * scripts/tune.sh 768 512 224 brings them back (the reported latency below is then too small by about 1250 frames). */
+#define M3_PREFILL_FRAMES 384u          /* silence queued ahead of the audio */
+#define M3_QUEUE_FRAMES 320u            /* what the pump keeps queued in the library; the daemon takes frame T when the device
+                                           clock is at T + (prefill - queue), the time CoreAudio has to deliver it */
+#define M3_TX_AHEAD_SLOTS 64u           /* send look-ahead in slots of 125 us (5.5 frames each) */
+#define M3_OUT_LATENCY_FOR(rate) (M3_PREFILL_FRAMES * M3_RATE_MULT(rate) + (rate) * 384u / 44100u)  /* 768 at 44100; the look-ahead part is 64 x 5.5 + about 32 frames of converters */
+#define M3_OUT_LATENCY M3_OUT_LATENCY_FOR(44100u)
 #define M3_IN_LATENCY_FOR(rate) (128u * M3_RATE_MULT(rate))
 #define M3_IN_LATENCY 128u
-#define M3_OUT_SAFETY_FOR(rate) (1024u * M3_RATE_MULT(rate))
-#define M3_OUT_SAFETY 1024u             /* CoreAudio may not write closer than this to "now" */
-#define M3_IN_SAFETY_FOR(rate) (512u * M3_RATE_MULT(rate))
-#define M3_IN_SAFETY 512u
+/* Safety offsets (v0.2.0): output 192, input 192 (were 1024 / 512). An input safety of 96 gave noise on recording. */
+#define M3_OUT_SAFETY_FOR(rate) (192u * M3_RATE_MULT(rate))
+#define M3_OUT_SAFETY 192u             /* CoreAudio may not write closer than this to "now" */
+#define M3_IN_SAFETY_FOR(rate) (192u * M3_RATE_MULT(rate))
+#define M3_IN_SAFETY 192u
 #define M3_NOM_LEAD_FOR(rate) (1024 * (int)M3_RATE_MULT(rate))
 #define M3_NOM_LEAD 1024               /* where the plug-in puts its write cursor relative to the daemon's read position when it has lost it */
 #define M3_MAX_LEAD 16384              /* a lead beyond this is not a lead (half the ring) */

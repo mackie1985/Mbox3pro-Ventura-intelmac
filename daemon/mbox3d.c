@@ -50,18 +50,18 @@ static double g_prior_nsf = 1e9 / M3_SAMPLE_RATE;
 
 /* Playback pipeline, tunable in /var/db/mbox3d.conf ("prefill N", "queue N"):
  * prefill = silence ahead of the audio, i.e. the output latency apart from the
- *           fixed 700 frames of send look-ahead in the library;
+ *           send look-ahead of the library (ahead slots x 5.5 frames);
  * queue   = frames the pump keeps queued in the library (pump jitter margin).
  * The pump takes shm frame T when the device clock is at T + (prefill - queue),
  * which is also the time CoreAudio has beyond its own write lead to deliver it. */
 #define CONF_FILE "/var/db/mbox3d.conf"
-static unsigned g_prefill_base = M3_PREFILL_FRAMES, g_queue_base = M3_PREFILL_FRAMES - M3_PUMP_DELAY;   /* for 44.1 / 48 kHz */
-static unsigned g_prefill = M3_PREFILL_FRAMES, g_queue = M3_PREFILL_FRAMES - M3_PUMP_DELAY;               /* for the rate in use */
+static unsigned g_prefill_base = M3_PREFILL_FRAMES, g_queue_base = M3_QUEUE_FRAMES;   /* for 44.1 / 48 kHz */
+static unsigned g_prefill = M3_PREFILL_FRAMES, g_queue = M3_QUEUE_FRAMES;               /* for the rate in use */
 /* The frame counts are for 44.1 / 48 kHz; at 88.2 / 96 kHz they are doubled so the margins last as long in time. */
 static void scale_for_rate(void) { g_prefill = g_prefill_base * M3_RATE_MULT(g_rate); g_queue = g_queue_base * M3_RATE_MULT(g_rate); }
 #define MAX_AUTO_RESTARTS 4
 static int g_auto_restarts;   /* restarts in a row that were made because the stream was unhealthy */
-static unsigned g_ahead = 0;   /* send look-ahead in slots, 0 = library default */
+static unsigned g_ahead = M3_TX_AHEAD_SLOTS;   /* send look-ahead in slots */
 
 static void load_conf(void)
 {
@@ -454,7 +454,7 @@ int main(void)
     load_prior();
     load_conf();
     scale_for_rate();
-    fprintf(stderr, "mbox3d: prefill %u frames, queue %u frames, send look-ahead %u slots (0 = default)\n", g_prefill, g_queue, g_ahead);
+    fprintf(stderr, "mbox3d: prefill %u frames, queue %u frames, send look-ahead %u slots\n", g_prefill, g_queue, g_ahead);
     fprintf(stderr, "mbox3d: starting timeline rate %.3f ns/frame\n", g_prior_nsf);
     signal(SIGTERM, SIG_IGN);       /* handled by the dispatch source below */
     signal(SIGINT, on_signal);

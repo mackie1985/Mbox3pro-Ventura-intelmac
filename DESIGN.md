@@ -622,3 +622,13 @@ Status: **verified on hardware** (MacBook Air 2017, macOS 13): 44.1 / 48 / 88.2 
   trigger it, so it is the death of the process (the kernel's cleanup of its FireWire resources), not the release of the ownership. The exact mechanism inside the device is not known.
 - Handling: nothing is needed beyond the retry, which the daemon does 0.5 s after a lock failure. Waiting before the first start would cost the same time as the failed attempt.
   The log now says so (`the device often needs a few seconds ...`).
+
+## 32. Low-latency defaults (v0.2.0)
+
+- Request: the DAW round trip was about 86 ms and felt too slow for software monitoring.
+- Where the time went (44.1 kHz, frames): output = prefill 768 + send look-ahead 224 slots x 5.5 + converters = about 2050 (46 ms); output safety offset 1024; input = 128 + safety offset 512.
+- Changes: prefill 384, queue 320, send look-ahead 64 slots (output about 786 frames, 17 ms); safety offsets 192 (output) and 192 (input). `M3_OUT_LATENCY_FOR` now reports prefill + rate x 384 / 44100 (768 frames at 44.1 kHz), so the DAW's latency compensation matches the real value.
+- Hardware tests (Intel MacBook Air 2017, 44.1 kHz): `768 512 128`, `640 448 112`, `512 384 96` (recording stable) and `384 320 64` (playback and recording clean by ear, `late 0`) were fine. `256 256 48` gave slight noise on playback. An input safety offset of 96 gave noise on recording; 192 did not.
+- Not verified with the new defaults: 48 / 88.2 / 96 kHz (the constants scale with the rate class), other Macs, long sessions (the 600 s statistics show `late 0`).
+- Pro Tools input monitoring of a record-armed track crackled at every setting (also at a 256-frame buffer) while the recorded file was clean: it does not depend on the driver's buffers, so it is treated as a property of that monitoring path. Direct monitoring in the control panel is not affected.
+- Going back: `scripts/tune.sh 768 512 224` (the reported latency stays at the new value, so the DAW's compensation is about 1250 frames too small then).
