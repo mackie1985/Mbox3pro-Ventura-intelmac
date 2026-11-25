@@ -3,6 +3,13 @@
 An unofficial macOS driver for the **Avid Mbox 3 Pro** (FireWire, TCAT DICE), written for macOS 13 Ventura on Intel,
 where Apple removed its FireWire audio support.
 
+> **Apple Silicon (beta, untested).** Since v0.3.0-beta.1 the package is universal (Intel + Apple Silicon). The Intel part is the tested one
+> (MacBook Air 2017). The Apple Silicon part builds the same code for arm64 but **has never been run on an Apple Silicon Mac**: it may not
+> work at all. Apple Silicon Macs have no FireWire port, so you need Thunderbolt adapters (Thunderbolt 3 to Thunderbolt 2, then Thunderbolt 2 to
+> FireWire), and the macOS you use must still have Apple's FireWire stack: **macOS 13 to 15**. On **macOS 26 (Tahoe)** Apple removed the FireWire
+> stack, so this driver cannot work there; use [ASFireWire](https://www.asfw.net/) (a separate, open-source project) instead.
+> **Testers are very welcome**, see [Testing on Apple Silicon](#testing-on-apple-silicon-beta).
+
 It makes the interface show up as a normal CoreAudio device and adds a small browser-based control panel for the
 mixer, routing and reverb.
 
@@ -41,7 +48,8 @@ mixer, routing and reverb.
 
 ## Requirements
 
-- macOS 13 Ventura (Intel). Other versions are untested. The FireWire stack (IOFireWireFamily) is gone in macOS 26.
+- macOS 13 Ventura on Intel: tested. Apple Silicon (macOS 13 to 15): beta, untested. macOS 12 Monterey and older (Intel): the package is built for macOS 12 and later, but nothing
+  has been tried there; another driver (Apple's own, or Avid's) may hold the device first. The FireWire stack (IOFireWireFamily) is gone in macOS 26.
 - Xcode Command Line Tools (`xcode-select --install`) for `cc`, `make` and `codesign`.
 - A working FireWire connection to the Mbox 3 Pro (FireWire 400 port, or a Thunderbolt-to-FireWire adapter chain).
 
@@ -58,7 +66,7 @@ sudo installer -pkg Mbox3pro-Ventura-intelmac-<version>.pkg -target /
 
 To remove it: `sudo /usr/local/share/mbox3pro/uninstall.sh`, then power-cycle the Mbox 3 Pro.
 
-To build the package yourself (on any Mac with the command line tools; the binaries are built for Intel):
+To build the package yourself (on any Mac with the command line tools; the package is universal, Intel + Apple Silicon beta):
 
 ```sh
 make pkg                        # -> build/Mbox3pro-Ventura-intelmac-<version>.pkg
@@ -115,6 +123,9 @@ sudo build/m3_shm_check watch 10    # needs root: the daemon only accepts root a
 The lines to look at: `under`, `late`, `dbc` (should stay at 0 once running), `playback peak` (should follow
 `CoreAudio output peak` while something plays), and `write margin min` (should stay positive).
 
+- **`no FireWire device found` forever, and `system_profiler SPFireWireDataType` prints nothing**: the Mac itself does not see the FireWire controller in the
+  adapter (the Thunderbolt link can still be fine: check `system_profiler SPThunderboltDataType`). Restarting the daemon does not help. Restart the Mac with the adapter
+  plugged in; if that is not enough, shut down, unplug the adapters, wait 30 seconds, plug them in, and start the Mac. This was seen once and a restart fixed it.
 - **Silence after an upgrade**: you probably replaced only one of the daemon and the plug-in. Run `scripts/install.sh all`
   and restart the audio application.
 - **`start failed: clock did not lock` in the log, or silence with pops**: stop the daemon
@@ -167,10 +178,29 @@ and the measured problems and fixes. A Japanese version is in [DESIGN.ja.md](DES
 - MacBook Air (13-inch, 2017), running macOS 13 Ventura via OpenCore Legacy Patcher (OCLP), at 44.1, 48, 88.2 and 96 kHz.
 - Pro Tools, and system audio (browser, `afplay`).
 
-That is one machine and one interface, so **testing on other setups is very welcome**: other Intel Macs, other macOS versions,
+That is one machine and one interface, so **testing on other setups is very welcome**: other Intel Macs, Apple Silicon Macs (beta), other macOS versions,
 other FireWire adapters or a second Mbox 3 Pro, long sessions, other DAWs. Whether it works or not, please [open an issue](https://github.com/mackie1985/Mbox3pro-Ventura-intelmac/issues) and include
 `sudo build/m3_shm_check watch 10` output and `/var/log/mbox3d.log`, the Mac model, the macOS version and how the Mac is connected to the Mbox
 (a native FireWire port, or an adapter chain).
+
+## Testing on Apple Silicon (beta)
+
+If you have an Apple Silicon Mac **running macOS 13 to 15** (not 26: see the note at the top), a Mbox 3 Pro and the Thunderbolt-to-FireWire adapters, please try the package and tell me what happens, **also when
+it does not work**. Step by step, stopping at the first step that fails:
+
+1. Does macOS see the FireWire device? `system_profiler SPFireWireDataType` should list the Mbox 3 Pro. If it does not, the problem is below this driver (adapters, cables, macOS).
+2. After installing the package: `file /usr/local/libexec/mbox3d` should say `Mach-O universal binary with 2 architectures`, and `tail -n 40 /var/log/mbox3d.log` should show `streaming at 44100 Hz`.
+3. Is "Mbox 3 Pro" in System Settings > Sound? Does sound play, and does recording work?
+4. After a few minutes of playback: `grep "rates over" /var/log/mbox3d.log | tail -n 3`.
+
+Please [open an issue](https://github.com/mackie1985/Mbox3pro-Ventura-intelmac/issues) with the Mac model, the macOS version, the adapters, `/var/log/mbox3d.log`
+and the output of the commands above. Known unknowns: memory ordering on arm64 (memory barriers were added but not tried), 16 KB pages, and whether FireWire works
+on your macOS version at all.
+
+## Testing on older macOS (Intel)
+
+The package is built for macOS 12 Monterey and later. If you run Monterey, please try it and report, also when it fails. Check first that no other driver holds the Mbox
+(Avid's or Apple's: `ioreg -l | grep -i -E "AppleFWAudio|Mbox"`). Please [open an issue](https://github.com/mackie1985/Mbox3pro-Ventura-intelmac/issues) with the macOS version and `/var/log/mbox3d.log`.
 
 ## Disclaimer
 

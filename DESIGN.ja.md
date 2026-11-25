@@ -602,3 +602,17 @@ Pro Tools の H/W バッファを 128 にすると、約 30 秒周期で歪み�
 - 新しい既定値での未確認: 48 / 88.2 / 96 kHz (定数はレートクラスに合わせて増える)、他の Mac、長時間の使用 (600 秒の統計は `late 0`)。
 - Pro Tools の録音待機トラックの入力モニターは、どの設定でも (256 フレームのバッファでも) 音切れがあり、録音されたファイルはきれいだった。ドライバのバッファに依存しないので、そのモニター経路の性質として扱う。コントロールパネルの直接モニターには影響しない。
 - 戻すとき: `scripts/tune.sh 768 512 224` (報告される遅延は新しい値のままなので、DAW の補正は約 1250 フレーム少なくなる)。
+
+## 33. Apple Silicon ベータ (v0.3.0-beta.1)
+
+- 要望: Apple Silicon で使えるようにする。作者の手元には、FireWire の経路がある Apple Silicon の Mac がないため、動作確認済みの移植ではなく、テスター向けのビルドである。
+- ソースで確認した点: 時刻は `mach_timebase_info` / `CLOCK_UPTIME_RAW` で取っている (Intel だけの 1:1 のタイムベースを仮定していない)。DMA バッファは `getpagesize()` で境界を合わせている (Apple Silicon は 16 KB ページ)。CPU 固有のアセンブラはない。
+- 変更: `scripts/make_pkg.sh` が、アーキテクチャごとに別々にビルドし (`cc -arch x86_64`、`cc -arch arm64`)、`lipo` でまとめ、アドホック署名する (arm64 のコードは署名が必須)。`hostArchitectures` は `x86_64,arm64`。Apple Silicon の Mac でのソースからのビルドは、そのまま arm64 のネイティブビルドになり、変更は要らない。
+- メモリの順序: x86 はロードとストアの順序を保つが、arm64 は保たない。FireWire の DMA が書いたものをライブラリが読む箇所 (受信ヘッダーの確認の後、送信のタイムスタンプの後) と、送信ペイロードをハードウェアが読める状態にする前に、`atomic_thread_fence` を追加した。観測された不具合の修正ではなく、予防である。
+- 未確認: Apple Silicon で、使う macOS のバージョンの FireWire が Thunderbolt アダプタ経由で動くか (macOS 26 では FireWire がない)。XPC の接続元チェック、`coreaudiod` のプラグイン読み込み、リアルタイムスレッドの優先度が同じように動くか。Intel の動作は変えていない。
+
+## 34. 古い macOS と、ASFireWire との位置づけ
+
+- ASFireWire (https://www.asfw.net/、Apache 2.0、macOS 26 が必要) は、Apple が FireWire の仕組みを削除した macOS 26 の Apple Silicon 向けに、FireWire のスタックを DriverKit で作り直したもの。このドライバは Apple 標準のスタック (IOFireWireLib) を使うので、macOS 26 では動かず、そこでは競合しない。このドライバの領域は、Intel の Mac (OpenCore Legacy Patcher を含む) と、Apple Silicon の macOS 13〜15。88.2 / 96 kHz も対象 (ASFireWire の文書は 44.1 / 48 kHz)。
+- パッケージのバイナリは `-mmacosx-version-min=12.0` でビルドする (`scripts/make_pkg.sh` の `MINVER`)。macOS 12 以前は試していない。考えられる問題は、Apple 標準や Avid のドライバがデバイスを先に掴むこと (デーモンは `Open failed: 0xe00002c5` で失敗する)、使っている macOS より新しい API を使っている箇所。
+- 一度だけ起きたこと (v0.3 の開発中、Intel の Ventura): デーモンが `no FireWire device found` で待ち続け、`system_profiler SPFireWireDataType` は何も出さず、`SPThunderboltDataType` にはアダプタが出ていたが、`SPPCIDataType` と `ioreg` に FireWire のコントローラがなかった。アダプタの先の PCI Express のトンネルが落ちていた。Mac の再起動で直った。ドライバの不具合ではなく、デーモンの変更は要らない。

@@ -508,6 +508,7 @@ static void rx_service(mbox3 *m, bool deliver)
         uint32_t first = *(volatile uint32_t *)b;
         if (first == FILL_PATTERN) break;
         if (*(volatile uint32_t *)nb == FILL_PATTERN) break;
+        atomic_thread_fence(memory_order_acquire);   /* header seen: read the payload after it (ARM does not order loads like x86 does) */
 
         const uint8_t *cip = b + 4;
         uint32_t q0 = dice_be32(cip), q1 = dice_be32(cip + 4);
@@ -722,6 +723,7 @@ static void tx_service(mbox3 *m, bool consume)
         unsigned s = m->tx_next;
         uint32_t v = m->tx_ts[s];
         if (v == 0xffffffffu) break;
+        atomic_thread_fence(memory_order_acquire);
         m->tx_ts[s] = 0xffffffffu;
         unsigned cyc = (v >> 12) & 0x1fff;
         unsigned missed = 0;
@@ -752,6 +754,7 @@ static void tx_service(mbox3 *m, bool consume)
             if (slot_is_data(s)) atomic_fetch_add(&m->st_underruns, 1);   /* already gone */
         } else {
             tx_fill_payload(m, s);
+            atomic_thread_fence(memory_order_release);   /* the payload is written before the hardware can reach the slot */
         }
         m->tx_fill++;
     }

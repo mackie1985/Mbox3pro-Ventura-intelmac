@@ -81,7 +81,7 @@ build/Mbox3.driver: driver/Mbox3Driver.c driver/proto.h driver/Info.plist
 	cp driver/Info.plist $@/Contents/Info.plist
 	codesign --force --sign - $@
 
-# macOS only: an installer package (Intel binaries), build/Mbox3pro-Ventura-intelmac-<version>.pkg
+# macOS only: an installer package (universal binaries: Intel + Apple Silicon beta), build/Mbox3pro-Ventura-intelmac-<version>.pkg
 pkg:
 	scripts/make_pkg.sh
 

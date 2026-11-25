@@ -1,4 +1,4 @@
-Mbox 3 Pro driver for macOS 13 Ventura (Intel Mac)
+Mbox 3 Pro driver for macOS 13 Ventura (Intel Mac; Apple Silicon is a BETA that has not been tested yet)
 
 An unofficial driver for the Avid Mbox 3 Pro (FireWire). It is not made, endorsed or supported by Avid.
 

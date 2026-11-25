@@ -3,15 +3,30 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 # Build an installer package (macOS only; needs the Xcode command line tools):
 #   scripts/make_pkg.sh      ->  build/Mbox3pro-Ventura-intelmac-<version>.pkg
-# The binaries are built for Intel (x86_64) whatever Mac this runs on. The package is not signed or notarised.
+# The binaries are universal (x86_64 + arm64), built one architecture at a time and joined with lipo, whatever Mac this runs on.
+# Built to start on macOS 12 and later (MINVER). The package is not signed or notarised. The arm64 part is a beta: it has not been run on an Apple Silicon Mac yet.
 set -e
 cd "$(dirname "$0")/.."
 [ "$(uname)" = Darwin ] || { echo "run this on a Mac"; exit 1; }
 VER=$(cat VERSION)
 OUT=build/Mbox3pro-Ventura-intelmac-$VER.pkg
 
+MINVER=12.0      # the oldest macOS the binaries are built to start on (arm64 needs 11.0 or later anyway)
+TMPB=$(mktemp -d)
+trap 'rm -rf "$TMPB"' EXIT
+for A in x86_64 arm64; do
+    make clean
+    make CC="cc -arch $A -mmacosx-version-min=$MINVER" daemon driver
+    mkdir -p "$TMPB/$A"
+    cp build/mbox3d "$TMPB/$A/mbox3d"
+    cp build/Mbox3.driver/Contents/MacOS/Mbox3Driver "$TMPB/$A/Mbox3Driver"
+done
 make clean
-make CC="cc -arch x86_64" daemon driver
+make CC="cc -arch x86_64 -mmacosx-version-min=$MINVER" daemon driver          # the bundle layout (Info.plist ...) from the Intel build
+lipo -create "$TMPB/x86_64/mbox3d" "$TMPB/arm64/mbox3d" -output build/mbox3d
+lipo -create "$TMPB/x86_64/Mbox3Driver" "$TMPB/arm64/Mbox3Driver" -output build/Mbox3.driver/Contents/MacOS/Mbox3Driver
+codesign --force --sign - build/Mbox3.driver     # arm64 code must be signed (ad hoc is enough)
+codesign --force --sign - build/mbox3d
 
 STAGE=build/pkgroot
 RES=build/pkgres
@@ -43,4 +58,4 @@ productbuild --distribution build/distribution.xml --resources "$RES" --package-
 echo
 echo "built $OUT"
 pkgutil --payload-files build/component.pkg | grep -v "/Contents/" | head -20
-file build/mbox3d | sed 's/^/  /'
+file build/mbox3d build/Mbox3.driver/Contents/MacOS/Mbox3Driver | sed 's/^/  /'

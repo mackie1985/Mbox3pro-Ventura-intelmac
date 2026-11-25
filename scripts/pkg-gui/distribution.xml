@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <installer-gui-script minSpecVersion="2">
-    <title>Mbox 3 Pro driver (macOS 13, Intel)</title>
+    <title>Mbox 3 Pro driver (macOS 13, Intel / Apple Silicon beta)</title>
     <license file="license.txt" mime-type="text/plain"/>
     <readme file="readme.txt" mime-type="text/plain"/>
-    <options customize="never" require-scripts="false" hostArchitectures="x86_64"/>
+    <options customize="never" require-scripts="false" hostArchitectures="x86_64,arm64"/>
     <domains enable_anyVolume="false" enable_currentUserHome="false" enable_localSystem="true"/>
     <choices-outline>
         <line choice="default">

@@ -632,3 +632,17 @@ Status: **verified on hardware** (MacBook Air 2017, macOS 13): 44.1 / 48 / 88.2 
 - Not verified with the new defaults: 48 / 88.2 / 96 kHz (the constants scale with the rate class), other Macs, long sessions (the 600 s statistics show `late 0`).
 - Pro Tools input monitoring of a record-armed track crackled at every setting (also at a 256-frame buffer) while the recorded file was clean: it does not depend on the driver's buffers, so it is treated as a property of that monitoring path. Direct monitoring in the control panel is not affected.
 - Going back: `scripts/tune.sh 768 512 224` (the reported latency stays at the new value, so the DAW's compensation is about 1250 frames too small then).
+
+## 33. Apple Silicon beta (v0.3.0-beta.1)
+
+- Request: make the driver usable on Apple Silicon. There is no Apple Silicon Mac with a FireWire path available to the author, so this is a build for testers, not a verified port.
+- Checked in the sources: time is taken with `mach_timebase_info` / `CLOCK_UPTIME_RAW` (no Intel-only 1:1 timebase assumption); DMA buffers are aligned with `getpagesize()` (16 KB pages on Apple Silicon); no CPU-specific assembler.
+- Changed: `scripts/make_pkg.sh` builds each architecture alone (`cc -arch x86_64`, `cc -arch arm64`), joins the binaries with `lipo` and signs them ad hoc (arm64 code must be signed); `hostArchitectures` is `x86_64,arm64`. A source build on an Apple Silicon Mac is native arm64 and needs no change.
+- Memory ordering: x86 keeps loads and stores in order, arm64 does not. `atomic_thread_fence` calls were added where the library reads what the FireWire DMA wrote (after the receive header check, after the transmit time stamp) and before a transmit payload becomes reachable. These are precautions, not a fix of an observed fault.
+- Not known: whether the FireWire stack works through the Thunderbolt adapters on Apple Silicon at the macOS version in use (it is gone in macOS 26); whether the XPC peer check, the `coreaudiod` plug-in loading and the real-time thread priorities behave the same. The Intel behaviour was not changed.
+
+## 34. Older macOS, and where this driver stands next to ASFireWire
+
+- ASFireWire (https://www.asfw.net/, Apache 2.0, requires macOS 26) rebuilds the FireWire stack in DriverKit for Apple Silicon on macOS 26, where Apple removed it. This driver uses Apple's own stack (IOFireWireLib), so it cannot work on macOS 26 and does not compete there. Its niche: Intel Macs (also with OpenCore Legacy Patcher) and macOS 13 to 15 on Apple Silicon, with 88.2 / 96 kHz (ASFireWire documents 44.1 and 48 kHz).
+- The package binaries are built with `-mmacosx-version-min=12.0` (`MINVER` in `scripts/make_pkg.sh`). macOS 12 and older were not tried. Possible problems: Apple's own or Avid's driver holding the device (the daemon would fail with `Open failed: 0xe00002c5`), and APIs newer than the version in use.
+- Seen once (v0.3 development, Ventura on Intel): the daemon waited with `no FireWire device found` while `system_profiler SPFireWireDataType` printed nothing, `SPThunderboltDataType` still listed the adapter, and no FireWire controller was in `SPPCIDataType` or `ioreg`: the PCI Express tunnel behind the adapter was down. A restart of the Mac fixed it. It is not a driver fault and the daemon needs no change.
