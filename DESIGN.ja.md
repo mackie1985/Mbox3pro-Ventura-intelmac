@@ -616,3 +616,12 @@ Pro Tools の H/W バッファを 128 にすると、約 30 秒周期で歪み�
 - ASFireWire (https://www.asfw.net/、Apache 2.0、macOS 26 が必要) は、Apple が FireWire の仕組みを削除した macOS 26 の Apple Silicon 向けに、FireWire のスタックを DriverKit で作り直したもの。このドライバは Apple 標準のスタック (IOFireWireLib) を使うので、macOS 26 では動かず、そこでは競合しない。このドライバの領域は、Intel の Mac (OpenCore Legacy Patcher を含む) と、Apple Silicon の macOS 13〜15。88.2 / 96 kHz も対象 (ASFireWire の文書は 44.1 / 48 kHz)。
 - パッケージのバイナリは `-mmacosx-version-min=12.0` でビルドする (`scripts/make_pkg.sh` の `MINVER`)。macOS 12 以前は試していない。考えられる問題は、Apple 標準や Avid のドライバがデバイスを先に掴むこと (デーモンは `Open failed: 0xe00002c5` で失敗する)、使っている macOS より新しい API を使っている箇所。
 - 一度だけ起きたこと (v0.3 の開発中、Intel の Ventura): デーモンが `no FireWire device found` で待ち続け、`system_profiler SPFireWireDataType` は何も出さず、`SPThunderboltDataType` にはアダプタが出ていたが、`SPPCIDataType` と `ioreg` に FireWire のコントローラがなかった。アダプタの先の PCI Express のトンネルが落ちていた。Mac の再起動で直った。ドライバの不具合ではなく、デーモンの変更は要らない。
+
+## 35. 往復遅延: 先行量・ドリフト・再開 (v0.3.0-beta.2)
+
+- 依頼: 計測した往復遅延(Oblique RTL Utility、バッファ 128)が約 3000 samples (68 ms) で、申告値 1536 を大きく上回っていた。
+- 判明したこと(`m3_shm_check watch`): 出力カーソルが CoreAudio 自身の時刻に置かれ、デーモンより約 1350 フレーム先(設計は約 500)にいた。さらに両方のカーソルが毎秒 3〜5 フレームずつずれ(CoreAudio の時刻に追従し、デバイスの時計はわずかに違うため)、往復遅延が 1 分に約 4 ms ずつ増え、ジャンプするまで続いた。
+- 変更(`driver/Mbox3Driver.c`、`driver/proto.h`、`daemon/mbox3d.c`): 出力カーソルをデーモンより `OutLead`(`frames + 出力 safety + (prefill - queue) + 書き込み slack`)先に置く。デーモンが追加分(`out_lead_extra`)を公開し、`scripts/tune.sh [PREFILL QUEUE [AHEAD [SLACK]]]` で書き込み slack(既定 128 フレーム)を設定する。出力の遅い補正は、CoreAudio 時刻との差ではなく、落ち着いたときのデーモンに対する先行量を保つ。入力カーソルにも同種の補正を入れ、読み出しの余裕を目標値(44.1 kHz で 192 + 64 フレーム)に保つ。1 ブロック以上遅れて届いたとき(停止後の再生再開)は、3 ブロック待たずにすぐカーソルを置き直す。
+- 計測(Intel MacBook Air 2017、44.1 kHz、バッファ 128): 往復遅延は約 1430〜1630 samples(33〜37 ms)で、以前の約 3000 から短縮。連続 5 回の測定は 10 samples 以内。write margin 約 300、read margin 約 145(1 秒ごとの最小値)で、90 秒間横ばい。定常状態の late writes / reads はなし。
+- 観察: 画面にコメントを流した YouTube を再生中に音飛び(Mac の CPU/GPU 負荷が原因で、ドライバではない。コメントをオフにして解消)。セッションごとに値が最大約 300 samples 変わる(1426〜2006 を観測)。原因は未特定。
+- 未確認: 48 / 88.2 / 96 kHz、128 と 512 以外のバッファ、長時間の使用、Apple Silicon。

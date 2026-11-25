@@ -62,6 +62,7 @@ static void scale_for_rate(void) { g_prefill = g_prefill_base * M3_RATE_MULT(g_r
 #define MAX_AUTO_RESTARTS 4
 static int g_auto_restarts;   /* restarts in a row that were made because the stream was unhealthy */
 static unsigned g_ahead = M3_TX_AHEAD_SLOTS;   /* send look-ahead in slots */
+static unsigned g_slack_base = M3_OUT_SLACK;   /* write slack of the plug-in's output cursor, frames at 44.1 / 48 kHz */
 
 static void load_conf(void)
 {
@@ -72,6 +73,7 @@ static void load_conf(void)
         if (!strcmp(key, "prefill") && v >= 256 && v <= 4096) g_prefill_base = v;
         else if (!strcmp(key, "queue") && v >= 128 && v <= 4096) g_queue_base = v;
         else if (!strcmp(key, "ahead") && v >= 48 && v <= 480) g_ahead = v;
+        else if (!strcmp(key, "slack") && v <= 2048) g_slack_base = v;
     }
     fclose(f);
 }
@@ -397,6 +399,11 @@ static void *pump_thread(void *arg)
             if (M3_RATE_OK(rq) && rq != g_rate) { g_rate = rq; load_prior(); }
             scale_for_rate();
         }
+        {
+            int extra = (int)g_prefill - (int)g_queue;
+            if (extra < 0) extra = 0;
+            atomic_store(&g_shm->out_lead_extra, (uint32_t)extra + g_slack_base * M3_RATE_MULT(g_rate));
+        }
         atomic_store(&g_shm->state, M3_STATE_STARTING);
         mbox3_config cfg = {0};
         cfg.sample_rate = g_rate;
@@ -454,7 +461,7 @@ int main(void)
     load_prior();
     load_conf();
     scale_for_rate();
-    fprintf(stderr, "mbox3d: prefill %u frames, queue %u frames, send look-ahead %u slots\n", g_prefill, g_queue, g_ahead);
+    fprintf(stderr, "mbox3d: prefill %u frames, queue %u frames, send look-ahead %u slots, write slack %u frames\n", g_prefill, g_queue, g_ahead, g_slack_base);
     fprintf(stderr, "mbox3d: starting timeline rate %.3f ns/frame\n", g_prior_nsf);
     signal(SIGTERM, SIG_IGN);       /* handled by the dispatch source below */
     signal(SIGINT, on_signal);

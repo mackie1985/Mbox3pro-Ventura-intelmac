@@ -76,6 +76,12 @@ static int64_t Place(int64_t *cursor, double sampleTime, _Atomic UInt32 *jumps, 
     }
     return t;
 }
+/* where the output cursor goes when it is (re)placed: just far enough ahead of the daemon's read position for this cycle's
+ * frames to arrive in time (one cycle + the safety offset CoreAudio keeps + the daemon's take-in delay + a slack) */
+static int64_t OutLead(m3_shm_header *h, UInt32 frames)
+{
+    return (int64_t)frames + (int64_t)M3_OUT_SAFETY_FOR(atomic_load(&gRate)) + (int64_t)atomic_load_explicit(&h->out_lead_extra, memory_order_relaxed);
+}
 static m3_shm_header *_Atomic gShm;
 static mach_timebase_info_data_t gTimebase;
 static pthread_once_t gOnce = PTHREAD_ONCE_INIT;
@@ -561,10 +567,39 @@ static OSStatus DoIO(AudioServerPlugInDriverRef d, AudioObjectID dev, AudioObjec
     if (op == kAudioServerPlugInIOOperationReadInput && stream == kInStreamID) {
         if (!h) { memset(buf, 0, (size_t)frames * M3_CHANNELS * sizeof(float)); return 0; }
         const int32_t *cap = m3_cap_ring(h);
+        const int64_t inBefore = gInNext;
         int64_t t0 = Place(&gInNext, ci->mInputTime.mSampleTime, &h->in_jumps, NULL, NULL, NULL, NULL);
-        gInNext = t0 + (int64_t)frames;
         uint64_t w = atomic_load_explicit(&h->cap_w, memory_order_acquire);
         const float scale = 1.0f / 8388608.0f;
+        /* The read cursor is contiguous, and the device delivers a few frames per second more than CoreAudio's cycles
+         * take, so the read margin creeps up (measured: about 4 frames per second) until a jump. Hold the margin where
+         * a target (measured: a cursor left where it was first placed starts at a margin of about 120 frames and then creeps
+         * up): a slow average of it, and now and then one source frame more or less, resampled into the block. */
+        static double iEma, iBase, iAcc;
+        static int iSettle;
+        static float inBuf[(8192 + 8) * M3_CHANNELS];
+        int inE = 0;
+        {
+            double m = (double)w - (double)(t0 + (int64_t)frames);
+            if (inBefore == NO_CURSOR || t0 != inBefore) {
+                iSettle = 0; iEma = m; iBase = m; iAcc = 0.0;
+            } else if (iSettle < 128) {
+                iSettle++;
+                iEma += (m - iEma) / 16.0;
+                if (iSettle == 128) iBase = (double)(M3_IN_SAFETY_FOR(atomic_load(&gRate)) + 64u * M3_RATE_MULT(atomic_load(&gRate)));
+            } else if (frames >= 16 && frames <= 8192) {
+                iEma += (m - iEma) / 64.0;
+                iAcc += (iEma - iBase) * ((double)frames / 128.0) / 256.0;
+                int e = (int)iAcc;
+                if (e > 2) e = 2;
+                if (e < -2) e = -2;
+                iAcc -= (double)e;
+                if (iAcc > 2.0) iAcc = 2.0;
+                if (iAcc < -2.0) iAcc = -2.0;
+                if (e) inE = e;
+            }
+        }
+        gInNext = t0 + (int64_t)frames + inE;
         {
             int64_t margin = (int64_t)w - (t0 + (int64_t)frames);
             if (margin < 0) atomic_fetch_add_explicit(&h->late_read_frames, (UInt32)(-margin > (int64_t)frames ? frames : -margin), memory_order_relaxed);
@@ -573,9 +608,11 @@ static OSStatus DoIO(AudioServerPlugInDriverRef d, AudioObjectID dev, AudioObjec
             if ((int32_t)margin < atomic_load_explicit(&h->read_margin_min, memory_order_relaxed))
                 atomic_store_explicit(&h->read_margin_min, (int32_t)margin, memory_order_relaxed);
         }
-        for (UInt32 i = 0; i < frames; i++) {
+        const UInt32 nIn = (UInt32)((int)frames + inE);
+        float *dst = inE ? inBuf : buf;
+        for (UInt32 i = 0; i < nIn; i++) {
             int64_t t = t0 + i;
-            float *f = buf + (size_t)i * M3_CHANNELS;
+            float *f = dst + (size_t)i * M3_CHANNELS;
             if (t >= 0 && (uint64_t)t < w && w - (uint64_t)t <= M3_RING_FRAMES) {
                 const int32_t *s = cap + ((uint64_t)t & mask) * M3_CHANNELS;
                 for (unsigned c = 0; c < M3_CHANNELS; c++) f[c] = (float)s[c] * scale;
@@ -583,6 +620,7 @@ static OSStatus DoIO(AudioServerPlugInDriverRef d, AudioObjectID dev, AudioObjec
                 for (unsigned c = 0; c < M3_CHANNELS; c++) f[c] = 0.0f;
             }
         }
+        if (inE) StretchBlock(inBuf, nIn, buf, frames);
         return 0;
     }
     if (op == kAudioServerPlugInIOOperationWriteMix && stream == kOutStreamID) {
@@ -611,17 +649,32 @@ static OSStatus DoIO(AudioServerPlugInDriverRef d, AudioObjectID dev, AudioObjec
          * 128. Single cycles are noisy (hundreds of frames), so watch a slow average of (CoreAudio time - cursor)
          * and move the cursor by the part that has built up since the cursor was last placed. */
         static double dEma, dBase, stretchAcc;
+        static int dSettle;
         static float stretchBuf[(8192 + 4) * M3_CHANNELS];
         double drift = 0.0;
         int rebased = (cursorBefore == NO_CURSOR) || (t0 != cursorBefore);
+        if (rebased) {
+            /* Not at CoreAudio's own time, which here lies about 1000 frames further ahead than the daemon needs
+             * (measured: write margin 1350 frames, a round trip 30 ms longer than reported): a small lead over the daemon */
+            t0 = (int64_t)taken + OutLead(h, frames);
+        }
         if (!rebased) {
-            dEma += ((double)(tRaw - t0) - dEma) / 64.0;
-            drift = dEma - dBase;
+            /* Hold the lead over the daemon where it settled (measured: CoreAudio's time and the device drift apart by
+             * a few frames a second, so following CoreAudio's time let the lead, and the round trip, creep up). */
+            const double x = (double)(t0 - (int64_t)taken);
+            if (dSettle < 128) {
+                dSettle++;
+                dEma += (x - dEma) / 16.0;
+                if (dSettle == 128) dBase = dEma;
+            } else {
+                dEma += (x - dEma) / 64.0;
+                drift = dBase - dEma;
+            }
             if (drift >= 512.0 || drift <= -512.0) {
                 /* far off: move the cursor at once */
                 int64_t adj = (int64_t)llround(drift);
                 t0 += adj;
-                dEma -= (double)adj;
+                dEma += (double)adj;
                 drift = 0.0;
                 atomic_fetch_add_explicit(&h->io_drift_fixes, 1, memory_order_relaxed);
                 atomic_fetch_add_explicit(&h->io_drift_frames, adj, memory_order_relaxed);
@@ -635,17 +688,20 @@ static OSStatus DoIO(AudioServerPlugInDriverRef d, AudioObjectID dev, AudioObjec
             static int lateRun;
             int64_t lead = t0 - (int64_t)taken;
             lateRun = lead < 0 ? lateRun + 1 : 0;
-            if (lateRun >= 3 || lead > M3_MAX_LEAD) {
-                int64_t j = (int64_t)taken + M3_NOM_LEAD_FOR(atomic_load(&gRate)) - t0;
+            /* more than one block behind at once (play restarted after a pause: the daemon went on while the cursor stood
+             * still): do not wait for three late blocks, which would be a click at every start */
+            if (lateRun >= 3 || lead > M3_MAX_LEAD || lead < -(int64_t)frames) {
+                int64_t j = (int64_t)taken + OutLead(h, frames) - t0;
                 atomic_fetch_add_explicit(&h->io_jumps, 1, memory_order_relaxed);
                 if (llabs((long long)j) > llabs((long long)atomic_load_explicit(&h->io_jump_max, memory_order_relaxed)))
                     atomic_store_explicit(&h->io_jump_max, (int32_t)(j > INT32_MAX ? INT32_MAX : j < INT32_MIN ? INT32_MIN : j), memory_order_relaxed);
-                t0 = (int64_t)taken + M3_NOM_LEAD_FOR(atomic_load(&gRate));
+                t0 = (int64_t)taken + OutLead(h, frames);
                 lateRun = 0;
                 rebased = 1;
             }
         }
-        if (rebased) { dBase = (double)(tRaw - t0); dEma = dBase; stretchAcc = 0.0; }
+        (void)tRaw;
+        if (rebased) { dSettle = 0; dEma = (double)(t0 - (int64_t)taken); dBase = dEma; stretchAcc = 0.0; }
         /* CoreAudio's cycles come a little slower than the device consumes (about a tenth of a percent here), so the
          * cursor falls behind CoreAudio's time. Absorb that by writing one frame more now and then: a slow control loop
          * on the drift decides how many extra frames this cycle gets, and the block is resampled to that length. */

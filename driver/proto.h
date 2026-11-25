@@ -34,7 +34,7 @@
 
 #define M3_SERVICE "com.mbox3pro.driver.daemon"
 #define M3_MAGIC 0x4d334452u            /* 'M3DR' */
-#define M3_VERSION 5u
+#define M3_VERSION 6u
 
 #define M3_CHANNELS 8
 #define M3_SAMPLE_RATE 44100            /* the default rate; 48000, 88200 and 96000 are the others (cur_rate / req_rate) */
@@ -59,6 +59,7 @@
 #define M3_OUT_SAFETY 192u             /* CoreAudio may not write closer than this to "now" */
 #define M3_IN_SAFETY_FOR(rate) (192u * M3_RATE_MULT(rate))
 #define M3_IN_SAFETY 192u
+#define M3_OUT_SLACK 128u              /* extra lead of the output write cursor over what CoreAudio needs, frames at 44.1 / 48 kHz (tune.sh, 4th argument) */
 #define M3_NOM_LEAD_FOR(rate) (1024 * (int)M3_RATE_MULT(rate))
 #define M3_NOM_LEAD 1024               /* where the plug-in puts its write cursor relative to the daemon's read position when it has lost it */
 #define M3_MAX_LEAD 16384              /* a lead beyond this is not a lead (half the ring) */
@@ -114,6 +115,8 @@ typedef struct {
     _Atomic int64_t io_drift_frames;      /* the sum of those moves, frames (positive = CoreAudio's time ran ahead of the cursor) */
     _Atomic uint32_t wake_gap_max_us;     /* the largest gap since the watcher last reset it */
     _Atomic uint32_t wake_over5, wake_over10, wake_over20;   /* gaps longer than 5, 10, 20 ms (a 128 frame cycle is 2.9 ms) */
+    _Atomic uint32_t out_lead_extra;      /* written by the daemon: (prefill - queue) + write slack, frames for the running rate. The plug-in puts its output cursor
+                                             frames-per-cycle + output safety offset + this ahead of play_pos whenever it (re)places the cursor */
 } m3_shm_header;
 
 /* header, then cap[ring][channels], then play[ring][channels] (int32, 24 bit in the low bits) */

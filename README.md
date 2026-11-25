@@ -24,7 +24,7 @@ mixer, routing and reverb.
 - Clock-locked full duplex streaming, tested with Pro Tools and with system audio / a browser.
 - Small buffers: 64, 128 and 256 frames were tested without distortion in Pro Tools; 512 frames is the default of
   system audio. See [DESIGN.md](DESIGN.md) section 27 for how the 128-frame problem was solved.
-- Low latency by default: about 17 ms of output latency in the driver and device (plus your DAW's buffer), tunable with `scripts/tune.sh`. The old, more cautious setting (about 46 ms) is `scripts/tune.sh 768 512 224`.
+- Low latency by default: about 17 ms of output latency in the driver and device (plus your DAW's buffer); the measured round trip at a 128-frame buffer is about 33 to 37 ms (DESIGN §35). Tunable with `scripts/tune.sh`. The old, more cautious setting (about 46 ms) is `scripts/tune.sh 768 512 224`.
 - A control panel at `http://127.0.0.1:47310/`:
   - output volumes (Out 1-8, headphones A/B) with stereo link,
   - input / S/PDIF / reverb-return faders with pan and mute (fed to Out 1-2 and both headphone outputs),
@@ -136,7 +136,7 @@ The lines to look at: `under`, `late`, `dbc` (should stay at 0 once running), `p
 - **88.2 / 96 kHz problems**: stop the daemon (`sudo launchctl bootout system/com.mbox3pro.driver.daemon`) and test the device directly:
   `make demo && build/mbox3_demo tone 6 440 rate=96000`, then reinstall with `scripts/install.sh all`. Please report the
   `router` and `rx:` lines of `/var/log/mbox3d.log` together with the result.
-- Latency / dropout tuning: `scripts/tune.sh [PREFILL QUEUE [AHEAD]]` (no arguments restores the defaults, 384 320 64). If you hear crackles on playback, try `scripts/tune.sh 512 384 96` or the cautious `768 512 224`.
+- Latency / dropout tuning: `scripts/tune.sh [PREFILL QUEUE [AHEAD [SLACK]]]` (no arguments restores the defaults, 384 320 64 128; a larger SLACK, e.g. 256, gives more room against dropouts at a cost of that many frames of delay). If you hear crackles on playback, try `scripts/tune.sh 512 384 96` or the cautious `768 512 224`.
 - Monitoring through the DAW (input monitoring of a record-armed track) may crackle in Pro Tools even when recordings are clean; use the control panel mixer for direct monitoring.
   More background is in [DESIGN.md](DESIGN.md) sections 12-15.
 
